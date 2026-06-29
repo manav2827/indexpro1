@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Investment Research Agent</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a0f1e; color: #e2e8f0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #0f172a, #1e293b); padding: 24px 32px; border-bottom: 1px solid #1e3a5f; display: flex; align-items: center; gap: 12px; }
+  .header h1 { font-size: 1.5rem; font-weight: 700; color: #38bdf8; }
+  .header span { font-size: 0.85rem; color: #64748b; }
+  .container { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+  .search-box { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; margin-bottom: 32px; }
+  .search-box h2 { font-size: 1.1rem; color: #94a3b8; margin-bottom: 20px; }
+  .input-row { display: flex; gap: 12px; }
+  input[type="text"] { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 14px 18px; font-size: 1rem; color: #e2e8f0; outline: none; transition: border 0.2s; }
+  input[type="text"]:focus { border-color: #38bdf8; }
+  button.analyse-btn { background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; border: none; border-radius: 10px; padding: 14px 28px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; }
+  button.analyse-btn:hover { opacity: 0.9; }
+  button.analyse-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip { background: #0f172a; border: 1px solid #334155; border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+  .chip:hover { border-color: #38bdf8; color: #38bdf8; }
+  .progress-box { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; margin-bottom: 32px; display: none; }
+  .progress-title { font-size: 0.9rem; color: #64748b; margin-bottom: 20px; }
+  .step { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #0f172a; }
+  .step:last-child { border-bottom: none; }
+  .step-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; }
+  .step-icon.pending { background: #1e3a5f; color: #64748b; }
+  .step-icon.active { background: #0ea5e9; color: white; animation: pulse 1s infinite; }
+  .step-icon.done { background: #10b981; color: white; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .step-label { font-size: 0.9rem; color: #94a3b8; }
+  .step-label.active { color: #38bdf8; }
+  .step-label.done { color: #10b981; }
+  .result-box { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; display: none; }
+  .verdict-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+  .company-name { font-size: 1.8rem; font-weight: 700; color: #f1f5f9; }
+  .verdict-badge { padding: 10px 24px; border-radius: 30px; font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
+  .verdict-badge.INVEST { background: #064e3b; color: #10b981; border: 2px solid #10b981; }
+  .verdict-badge.HOLD { background: #451a03; color: #f59e0b; border: 2px solid #f59e0b; }
+  .verdict-badge.PASS { background: #450a0a; color: #ef4444; border: 2px solid #ef4444; }
+  .confidence-row { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .confidence-label { font-size: 0.85rem; color: #64748b; }
+  .confidence-bar { flex: 1; height: 8px; background: #0f172a; border-radius: 4px; overflow: hidden; }
+  .confidence-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #0ea5e9, #6366f1); transition: width 1s ease; }
+  .confidence-pct { font-size: 0.9rem; font-weight: 600; color: #38bdf8; }
+  .scores-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .score-card { background: #0f172a; border: 1px solid #1e3a5f; border-radius: 12px; padding: 16px; text-align: center; }
+  .score-card .label { font-size: 0.75rem; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .score-card .value { font-size: 1.8rem; font-weight: 700; }
+  .score-card .value.high { color: #10b981; }
+  .score-card .value.mid { color: #f59e0b; }
+  .score-card .value.low { color: #ef4444; }
+  .section { margin-bottom: 24px; }
+  .section h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #1e3a5f; }
+  .section p { font-size: 0.95rem; color: #cbd5e1; line-height: 1.7; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .pros, .cons { background: #0f172a; border-radius: 12px; padding: 16px; }
+  .pros h4 { color: #10b981; font-size: 0.85rem; margin-bottom: 10px; }
+  .cons h4 { color: #ef4444; font-size: 0.85rem; margin-bottom: 10px; }
+  .pros li, .cons li { font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; margin-left: 16px; line-height: 1.5; }
+  .key-insight { background: linear-gradient(135deg, #0c1a3a, #1a1040); border: 1px solid #1e3a5f; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .key-insight .label { font-size: 0.75rem; color: #6366f1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .key-insight p { font-size: 0.95rem; color: #c7d2fe; line-height: 1.6; }
+  .meta-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 24px; padding-top: 20px; border-top: 1px solid #1e3a5f; }
+  .meta-item { font-size: 0.8rem; color: #64748b; }
+  .meta-item span { color: #94a3b8; font-weight: 500; }
+  .error-box { background: #450a0a; border: 1px solid #7f1d1d; border-radius: 12px; padding: 20px; color: #fca5a5; font-size: 0.9rem; display: none; margin-bottom: 24px; }
+  .sources { margin-top: 20px; }
+  .sources h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; }
+  .source-link { display: inline-block; background: #0f172a; border: 1px solid #1e3a5f; border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; color: #38bdf8; text-decoration: none; margin: 4px; }
+  .source-link:hover { border-color: #38bdf8; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📈 AI Investment Research Agent</h1>
+    <span>Powered by real web research · Built for InsideIIM × Altuni AI Labs</span>
+  </div>
+</div>
+
+<div class="container">
+  <div class="search-box">
+    <h2>Enter a company to analyse</h2>
+    <div class="input-row">
+      <input type="text" id="companyInput" placeholder="e.g. Apple, Zomato, Reliance, Tesla..." />
+      <button class="analyse-btn" id="analyseBtn" onclick="startAnalysis()">Analyse →</button>
+    </div>
+    <div class="chips">
+      <div class="chip" onclick="setCompany('Apple')">Apple</div>
+      <div class="chip" onclick="setCompany('Tesla')">Tesla</div>
+      <div class="chip" onclick="setCompany('Zomato')">Zomato</div>
+      <div class="chip" onclick="setCompany('Reliance Industries')">Reliance</div>
+      <div class="chip" onclick="setCompany('NVIDIA')">NVIDIA</div>
+      <div class="chip" onclick="setCompany('Infosys')">Infosys</div>
+      <div class="chip" onclick="setCompany('Amazon')">Amazon</div>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="progress-box" id="progressBox">
+    <div class="progress-title">🔍 Researching company...</div>
+    <div id="steps"></div>
+  </div>
+
+  <div class="result-box" id="resultBox"></div>
+</div>
+
+<script>
+const SERPER_KEY = '432a1b57eaf358d43576c3fcaa288bea1e9d9a14';
+
+function setCompany(name) {
+  document.getElementById('companyInput').value = name;
+}
+
+document.getElementById('companyInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startAnalysis();
+});
+
+const STEPS = [
+  'Searching business overview & model',
+  'Fetching financial performance data',
+  'Analysing competitive moat & market position',
+  'Checking management & recent news',
+  'Evaluating valuation & investment outlook',
+  'Generating investment verdict'
+];
+
+function renderSteps(activeIdx) {
+  const container = document.getElementById('steps');
+  container.innerHTML = STEPS.map((s, i) => {
+    let cls = i < activeIdx ? 'done' : i === activeIdx ? 'active' : 'pending';
+    let icon = i < activeIdx ? '✓' : i === activeIdx ? '⟳' : (i + 1);
+    return `<div class="step">
+      <div class="step-icon ${cls}">${icon}</div>
+      <div class="step-label ${cls}">${s}</div>
+    </div>`;
+  }).join('');
+}
+
+async function searchSerper(query) {
+  const res = await fetch('https://google.serper.dev/search', {
+    method: 'POST',
+    headers: { 'X-API-KEY': SERPER_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q: query, num: 5 })
+  });
+  const data = await res.json();
+  const results = data.organic || [];
+  return results.map(r => `${r.title}: ${r.snippet}`).join('\n');
+}
+
+async function startAnalysis() {
+  const company = document.getElementById('companyInput').value.trim();
+  if (!company) return;
+
+  document.getElementById('analyseBtn').disabled = true;
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('progressBox').style.display = 'block';
+
+  try {
+    renderSteps(0);
+    const business = await searchSerper(`${company} business model revenue products services overview 2024`);
+
+    renderSteps(1);
+    const financials = await searchSerper(`${company} financial results revenue profit earnings growth 2024`);
+
+    renderSteps(2);
+    const moat = await searchSerper(`${company} competitive advantage market share industry position`);
+
+    renderSteps(3);
+    const news = await searchSerper(`${company} CEO management news risks challenges 2024 2025`);
+
+    renderSteps(4);
+    const valuation = await searchSerper(`${company} stock price valuation PE ratio market cap investment analyst`);
+
+    renderSteps(5);
+
+    const prompt = `You are an expert investment analyst. Based on the following research data about "${company}", provide a comprehensive investment analysis.
+
+BUSINESS OVERVIEW:
+${business}
+
+FINANCIAL DATA:
+${financials}
+
+COMPETITIVE MOAT:
+${moat}
+
+MANAGEMENT & NEWS:
+${news}
+
+VALUATION:
+${valuation}
+
+Respond ONLY with a valid JSON object (no markdown, no explanation outside JSON) in exactly this format:
+{
+  "company": "${company}",
+  "verdict": "INVEST or HOLD or PASS",
+  "confidence": 75,
+  "scores": {
+    "business": 7,
+    "financials": 6,
+    "moat": 8,
+    "management": 7,
+    "valuation": 5
+  },
+  "summary": "2-3 sentence overall assessment",
+  "businessAnalysis": "2-3 sentences about business model and revenue",
+  "financialAnalysis": "2-3 sentences about financial health",
+  "moatAnalysis": "2-3 sentences about competitive advantages",
+  "risks": "2-3 sentences about key risks",
+  "keyInsight": "One powerful insight that defines this investment case",
+  "pros": ["strength 1", "strength 2", "strength 3"],
+  "cons": ["concern 1", "concern 2", "concern 3"],
+  "marketCap": "estimated market cap e.g. $2.5T or Unknown",
+  "timeHorizon": "Short-term / Medium-term / Long-term",
+  "riskLevel": "Low / Medium / High"
+}`;
+
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const aiData = await aiRes.json();
+    const text = aiData.content[0].text;
+    const clean = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    document.getElementById('progressBox').style.display = 'none';
+    renderResult(result);
+
+  } catch (err) {
+    document.getElementById('progressBox').style.display = 'none';
+    const eb = document.getElementById('errorBox');
+    eb.style.display = 'block';
+    eb.textContent = '❌ Error: ' + err.message + '. Please try again.';
+    console.error(err);
+  }
+
+  document.getElementById('analyseBtn').disabled = false;
+}
+
+function scoreColor(v) {
+  if (v >= 7) return 'high';
+  if (v >= 5) return 'mid';
+  return 'low';
+}
+
+function renderResult(r) {
+  const box = document.getElementById('resultBox');
+  box.style.display = 'block';
+
+  const prosList = (r.pros || []).map(p => `<li>${p}</li>`).join('');
+  const consList = (r.cons || []).map(c => `<li>${c}</li>`).join('');
+
+  box.innerHTML = `
+    <div class="verdict-row">
+      <div class="company-name">${r.company}</div>
+      <div class="verdict-badge ${r.verdict}">${r.verdict}</div>
+    </div>
+
+    <div class="confidence-row">
+      <div class="confidence-label">Confidence</div>
+      <div class="confidence-bar"><div class="confidence-fill" style="width:${r.confidence}%"></div></div>
+      <div class="confidence-pct">${r.confidence}%</div>
+    </div>
+
+    <div class="scores-grid">
+      <div class="score-card"><div class="label">Business</div><div class="value ${scoreColor(r.scores.business)}">${r.scores.business}/10</div></div>
+      <div class="score-card"><div class="label">Financials</div><div class="value ${scoreColor(r.scores.financials)}">${r.scores.financials}/10</div></div>
+      <div class="score-card"><div class="label">Moat</div><div class="value ${scoreColor(r.scores.moat)}">${r.scores.moat}/10</div></div>
+      <div class="score-card"><div class="label">Management</div><div class="value ${scoreColor(r.scores.management)}">${r.scores.management}/10</div></div>
+      <div class="score-card"><div class="label">Valuation</div><div class="value ${scoreColor(r.scores.valuation)}">${r.scores.valuation}/10</div></div>
+    </div>
+
+    <div class="key-insight">
+      <div class="label">💡 Key Insight</div>
+      <p>${r.keyInsight}</p>
+    </div>
+
+    <div class="section"><h3>Summary</h3><p>${r.summary}</p></div>
+    <div class="section"><h3>Business Model</h3><p>${r.businessAnalysis}</p></div>
+    <div class="section"><h3>Financial Health</h3><p>${r.financialAnalysis}</p></div>
+    <div class="section"><h3>Competitive Moat</h3><p>${r.moatAnalysis}</p></div>
+    <div class="section"><h3>Key Risks</h3><p>${r.risks}</p></div>
+
+    <div class="section">
+      <h3>Pros & Cons</h3>
+      <div class="pros-cons">
+        <div class="pros"><h4>✅ Strengths</h4><ul>${prosList}</ul></div>
+        <div class="cons"><h4>❌ Concerns</h4><ul>${consList}</ul></div>
+      </div>
+    </div>
+
+    <div class="meta-row">
+      <div class="meta-item">Market Cap: <span>${r.marketCap}</span></div>
+      <div class="meta-item">Time Horizon: <span>${r.timeHorizon}</span></div>
+      <div class="meta-item">Risk Level: <span>${r.riskLevel}</span></div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
